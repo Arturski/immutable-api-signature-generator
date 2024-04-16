@@ -7,43 +7,29 @@
 </div>
 
 ## Generate Signatures for Manual API usage
-This script will generate signatures for manual API use. Use this if you wish to make an Immutable API call which requires either of the following:
-* eth_signature : a signature of a L1 payload
-* stark_signature: a signature of a L2 payload
+This script is a basic example of refreshing NFT metadata by token ID on Immutable zkEVM.
 
 # Prerequisites
 
-* Node 16+
+* Node 18+
 
 # Usage
 
 ```bash
-cd ./generateAPISignature
-ts-node --esm ./index.ts
+npm i
+node --loader ts-node/esm index.ts
 ```
 
 # Expected Output
 
 ```bash
-------------------------- INPUT VALUES ----------------------------
-
-ETH Public Key (Address):       {PUBLICKEY}
-ETH Private Key:                {PRIVATE_KEY}
-ETH Network:                    {ETH_NETWORK}
-Alchemy API Key:                {ALCHEMY_API}
-
-------------------------- STARK WALLET ----------------------------
-
-Stark Public Key:               {STARK_PUBLIC_KEY}
-Stark Private Key:              {STARK_PRIVATE_KEY}
-
-------------------------- TO BE SIGNED ----------------------------
-
-Stark L2 Payload Hash:          {STARK_PAYLOAD}
-ETH L1 Message:                 {ETH_PAYLOAD}
-
-------------------------- SIGNATURES ------------------------------
-
-STARK L2 Signature:             {STARK_SIGNATURE}
-ETH L1 Signature:               {ETH_SIGNATURE}
+publishable key:  pk_imapik-test-plBJzGKaGo5ZnoTosuOo
+api key:  **********************************
+{
+  imx_refresh_limit_reset: '2024-04-16 11:06:07.401553 +0000 UTC',
+  imx_refreshes_limit: '677',
+  imx_remaining_refreshes: '675',
+  retry_after: '9.61-seconds'
+}
+done
 ```

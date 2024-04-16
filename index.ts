@@ -1,24 +1,24 @@
-// Core SDK imports latest version OK
-import { createStarkSigner, generateLegacyStarkPrivateKey } from '@imtbl/core-sdk'
+// Imports and setup
+import { config, blockchainData } from '@imtbl/sdk';
+import axios from 'axios';
+import * as dotenv from 'dotenv';
 
-// Wallet provider
-import { Wallet } from '@ethersproject/wallet';
+dotenv.config();
 
-//Input type for wallet creation
-import { BytesLike } from 'ethers';
+interface Metadata {
+    token_id: string;
+    name: string;
+    image: string;
+    description: string;
+    external_url: string;
+    animation_url: null;
+    youtube_url: string;
+    attributes: any[];
+}
 
-//Get env vars
-import * as dotenv from 'dotenv'
-
-// Http client for API interactions
-import axios from 'axios'
-
-
-// Env variable functions
-dotenv.config()
-function getEnv(name: string, defaultValue = undefined) {
+// Helper functions
+function getEnv(name: string, defaultValue?: string): string {
   const value = process.env[name];
-
   if (value !== undefined) {
     return value;
   }
@@ -28,60 +28,75 @@ function getEnv(name: string, defaultValue = undefined) {
   throw new Error(`Environment variable '${name}' not set`);
 }
 
-function requireEnvironmentVariable(key: string): string {
-  const value = getEnv(key);
-  if (!value) {
-    throw new Error(`Please ensure a value exists for ${key}`);
+const API_KEY = getEnv('API_KEY');
+const PUBLISHABLE_KEY = getEnv('PUBLISHABLE_KEY');
+const CHAIN = getEnv('CHAIN');
+const COLLECTION_ADDRESS = getEnv('COLLECTION_ADDRESS');
+const MIN_TOKEN_ID = parseInt(getEnv('MIN_TOKEN_ID'), 10);
+const MAX_TOKEN_ID = parseInt(getEnv('MAX_TOKEN_ID'), 10);
+const METADATA_BASE_URL = getEnv('METADATA_BASE_URL');
+const DELAY_MS = parseInt(getEnv('DELAY_MS', '300'));  // Default to 1000ms if not specified
+
+const client = new blockchainData.BlockchainData({
+  baseConfig: {
+    environment: config.Environment.SANDBOX,
+    apiKey: API_KEY,
+    publishableKey: PUBLISHABLE_KEY,
+  },
+});
+
+// Function to fetch metadata
+async function fetchMetadata(tokenId: number): Promise<Metadata | null> {
+  const url = `${METADATA_BASE_URL}${tokenId}`;
+  try {
+    const response = await axios.get(url);
+    return {
+      token_id: tokenId.toString(),
+      name: response.data.name,
+      image: response.data.image,
+      description: response.data.description,
+      external_url: response.data.external_link,
+      animation_url: null,
+      youtube_url: response.data.youtube_url,
+      attributes: [],
+    };
+  } catch (error) {
+    console.error(`Failed to fetch metadata for token ID ${tokenId}:`, error);
+    return null;
   }
-  return value;
 }
 
-//Set constants from env vars
-const ETH_PRIVATE_KEY: string = requireEnvironmentVariable('ETH_PRIVATE_KEY') as string;
-const ETH_ADDRESS: string = requireEnvironmentVariable('ETH_ADDRESS') as string;
-const ETH_NETWORK: string = requireEnvironmentVariable('ETH_NETWORK') as string;
-const ALCHEMY_API_KEY: string = requireEnvironmentVariable('ALCHEMY_API_KEY') as string;
-
-// Create ETH signer with ETH provate key as BytesLike
-const ETH_SIGNER = new Wallet(ETH_PRIVATE_KEY as BytesLike)
-
-//Generate Stark Private Key in legacy mode. Supported in latest 1.0.0 release
-const STARK_PRIVATE_KEY = await generateLegacyStarkPrivateKey(ETH_SIGNER)
-
-//Create a Stark Signer
-const STARK_SIGNER = createStarkSigner(STARK_PRIVATE_KEY)
-
-//Get public key from stark signer
-const STARK_PUBLIC_KEY = STARK_SIGNER.getAddress()
-
-// Get payloads from API with axios http client
-let payloads = await axios('https://api.sandbox.x.immutable.com/v1/signable-registration-offchain', {
-  method: 'POST',
-  data: {
-    ether_key: ETH_ADDRESS.toLowerCase(),
-    stark_key: STARK_PUBLIC_KEY
-  },
-  headers: {
-    "Content-Type": "application/json"
+// Function to process batches
+async function refreshBatch(start: number, end: number): Promise<void> {
+  const metadataPromises: Promise<Metadata | null>[] = [];
+  for (let tokenId = start; tokenId <= end; tokenId++) {
+    metadataPromises.push(fetchMetadata(tokenId));
+    await new Promise(resolve => setTimeout(resolve, DELAY_MS)); // Delay between requests
   }
-})
+  const metadataResults = await Promise.all(metadataPromises);
+  const filteredMetadata = metadataResults.filter((item): item is Metadata => item !== null);
 
-//Sign the payloads with relevant signer
-const l2_signature = await STARK_SIGNER.signMessage(payloads.data['payload_hash'])
-const l1_signature = await ETH_SIGNER.signMessage(payloads.data['signable_message'])
+  if (filteredMetadata.length > 0) {
+    try {
+      const response = await client.refreshNFTMetadata({
+        chainName: CHAIN,
+        contractAddress: COLLECTION_ADDRESS,
+        refreshNFTMetadataByTokenIDRequest: { nft_metadata: filteredMetadata },
+      });
+      console.log(`Batch ${start}-${end} refreshed successfully`, response);
+    } catch (error) {
+      console.error(`Failed to refresh metadata for batch ${start}-${end}:`, error);
+      throw error;  // Rethrow the error to be handled by the caller
+    }
+  }
+}
 
-// Human Friendly Output
-console.log("\n------------------------- INPUT VALUES ----------------------------\n")
-console.log("ETH Public Key (Address): \t" + ETH_ADDRESS)
-console.log("ETH Private Key: \t\t" + ETH_PRIVATE_KEY)
-console.log("ETH Network: \t\t\t" + ETH_NETWORK)
-console.log("Alchemy API Key: \t\t" + ALCHEMY_API_KEY + "\n")
-console.log("------------------------- STARK WALLET ----------------------------\n")
-console.log("Stark Public Key: \t\t" + STARK_PUBLIC_KEY)
-console.log("Stark Private Key: \t\t" + STARK_PRIVATE_KEY + "\n")
-console.log("------------------------- TO BE SIGNED ----------------------------\n")
-console.log("Stark L2 Payload Hash: \t\t" + payloads.data['payload_hash'])
-console.log("ETH L1 Message: \t\t" + payloads.data['signable_message'] + "\n")
-console.log("------------------------- SIGNATURES ------------------------------\n")
-console.log("STARK L2 Signature: \t\t" + l2_signature)
-console.log("ETH L1 Signature: \t\t" + l1_signature + "\n")
+
+// Main processing loop
+(async function processAllBatches() {
+  for (let i = MIN_TOKEN_ID; i <= MAX_TOKEN_ID; i += 10) {
+    const end = Math.min(i + 9, MAX_TOKEN_ID);
+    await refreshBatch(i, end);
+  }
+  console.log('Done processing all batches.');
+})();

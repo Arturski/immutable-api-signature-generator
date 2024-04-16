@@ -1,20 +1,19 @@
 {
-  // https://www.typescriptlang.org/tsconfig#compilerOptions
   "compilerOptions": {
     "esModuleInterop": true,
-    "lib": ["es2020"],
-    "module": "ES2022",
+    "lib": ["es2020", "dom"], // Added "dom" to include DOM type definitions
+    "module": "ESNext",
     "preserveConstEnums": true,
-    "moduleResolution": "Node",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "sourceMap": true,
-    "target": "es2022",
+    "target": "ESNext",
     "types": ["node"],
     "outDir": "dist",
     "useUnknownInCatchVariables": false,
     "noImplicitAny": false,
+    "skipLibCheck": true // Skip type checking of all declaration files (*.d.ts) in node_modules
   },
-  "include": ["src/**/*", "requests.ts"],
   "exclude": ["node_modules"],
   "esm": true
 }
