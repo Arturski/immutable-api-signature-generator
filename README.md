@@ -13,12 +13,15 @@ Useful when you've updated the off-chain metadata for a collection and need Immu
 
 ```bash
 npm install
-cp .env.example .env   # then fill in your values
+cp .env.example .env   # ships with working sandbox creds — runs as-is
 ```
+
+`.env.example` includes a shared Immutable **sandbox/testnet** key so the demo
+works out of the box. Swap in your own values to target your own collection:
 
 | Variable | Purpose |
 | --- | --- |
-| `API_KEY` | Immutable **secret** API key (server-side; keep private) |
+| `API_KEY` | Immutable **secret** API key (server-side) |
 | `PUBLISHABLE_KEY` | Immutable publishable key |
 | `CHAIN` | Chain name, e.g. `imtbl-zkevm-testnet` |
 | `COLLECTION_ADDRESS` | The collection contract address |
@@ -26,7 +29,8 @@ cp .env.example .env   # then fill in your values
 | `METADATA_BASE_URL` | Base URL the metadata is read from (`<base><tokenId>`) |
 | `DELAY_MS` | Delay between requests (default `300`) to stay under rate limits |
 
-> ⚠️ `API_KEY` is a secret. It lives only in `.env` (git-ignored) — never commit it.
+> ℹ️ The bundled key is a low-risk shared **testnet** key for convenience. For your
+> own collections or any real use, use your own key and keep secret keys out of git.
 
 ## Usage
 
